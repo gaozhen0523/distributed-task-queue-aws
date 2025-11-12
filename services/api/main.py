@@ -1,10 +1,11 @@
 # services/api/main.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 from typing import Dict, Any
 import uuid
 import time
-
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from libs.metrics.prom_metrics import registry, record_enqueue, record_fail, record_retry, update_queue_depth
 from libs.queue.redis_queue import RedisQueue
 
 
@@ -61,3 +62,21 @@ def get_dlq(limit: int = 50):
         return {"count": len(items), "items": items}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/metrics")
+def metrics():
+    """Prometheus-compatible metrics endpoint"""
+    return Response(generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+
+@app.get("/metrics/test")
+def metrics_test():
+    record_enqueue()
+    record_enqueue()
+    record_fail()
+    record_retry()
+    update_queue_depth(3)
+    return {"ok": True}

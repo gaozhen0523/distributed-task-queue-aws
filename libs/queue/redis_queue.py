@@ -2,7 +2,7 @@
 import json
 import time
 from typing import Optional, Dict, Any
-
+from libs.queue.task_priority import Priority
 import redis
 
 
@@ -33,10 +33,11 @@ class RedisQueue:
     # ----------------------------------------------------------------------
     # Push new task
     # ----------------------------------------------------------------------
-    def enqueue(self, task: Dict[str, Any]) -> None:
+    def enqueue(self, task: Dict[str, Any], priority: str = Priority.MEDIUM) -> None:
         """Push a task to the queue (LPUSH so BRPOP pops in FIFO)."""
         payload = json.dumps(task)
-        self.r.lpush(self.queue_key, payload)
+        key = f"{self.queue_key}:{priority}"
+        self.r.lpush(key, payload)
 
     # ----------------------------------------------------------------------
     # Blocking pop
@@ -48,7 +49,7 @@ class RedisQueue:
           - If block=False: just check once (RPOP)
         """
         if block:
-            result = self.r.brpop(self.queue_key, timeout=timeout)
+            result = self.r.brpop([self.queue_key], timeout=timeout)
             if result is None:
                 return None  # timeout, no task
             _, payload = result
@@ -61,6 +62,14 @@ class RedisQueue:
             return json.loads(payload)
         except Exception:
             return None
+
+    def dequeue_priority(self, timeout=5):
+        queues = [f"{self.queue_key}:{Priority.HIGH}", f"{self.queue_key}:{Priority.MEDIUM}", f"{self.queue_key}:{Priority.LOW}"]
+        result = self.r.brpop(queues, timeout=timeout)
+        if result is None:
+            return None
+        _, raw = result
+        return json.loads(raw)
 
     # ----------------------------------------------------------------------
     # Retry queue (sorted set)

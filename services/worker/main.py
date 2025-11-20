@@ -63,7 +63,7 @@ def worker_loop():
         # ---------------------------------------------------------------
         # Step 2: normal queue blocking pop
         # ---------------------------------------------------------------
-        task = queue.dequeue(block=True, timeout=5)
+        task = queue.dequeue_priority(timeout=5)
         if task is None:
             # no new task
             continue

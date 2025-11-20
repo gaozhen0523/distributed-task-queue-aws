@@ -20,7 +20,7 @@ queue = RedisQueue()
 class TaskCreate(BaseModel):
     payload: Dict[str, Any]
     max_retries: int = 3
-
+    priority: str = "medium"
 
 class TaskAck(BaseModel):
     task_id: str

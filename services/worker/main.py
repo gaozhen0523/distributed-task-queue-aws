@@ -2,11 +2,10 @@
 import json
 import random
 import time
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from libs.queue.redis_queue import RedisQueue
-
 
 logger = logging.getLogger("worker")
 logging.basicConfig(
@@ -16,74 +15,105 @@ logging.basicConfig(
 
 
 # ----------------------------------------------------------------------
-# 模拟任务执行：80% 成功，20% 失败
+# 模拟业务逻辑：80% 成功 / 20% 失败
 # ----------------------------------------------------------------------
 def execute_task(task: dict) -> bool:
-    """
-    Return True if success, False if failed.
-    """
-    # 模拟随机失败
-    if random.random() < 0.2:
+    time.sleep(3)
+    if task["payload"]["force_fail"]:
         return False
-    return True
+    return random.random() >= 0.2
 
 
 # ----------------------------------------------------------------------
-# Worker Loop
+# 获取下一条任务（retry 优先级更高）
+# ----------------------------------------------------------------------
+def fetch_next_task(queue: RedisQueue):
+    retry_task = queue.pop_due_retry()
+    if retry_task:
+        retry_task["_from"] = "retry"
+        return retry_task
+
+    normal_task = queue.dequeue_priority(timeout=5)
+    if normal_task:
+        normal_task["_from"] = "normal"
+        return normal_task
+
+    return None
+
+
+# ----------------------------------------------------------------------
+# 统一的任务执行逻辑（幂等 + 重试 + dlq）
+# ----------------------------------------------------------------------
+def run_task(task: dict, queue: RedisQueue):
+    task_id = task.get("task_id")
+    biz_key = task.get("biz_key")
+    retry_count = task.get("retry_count", 0)
+    max_retries = task.get("max_retries", 3)
+
+    # -------------------------------
+    # Step 0: acquire processing lock
+    # -------------------------------
+    acquired = queue.start_processing(biz_key, task_id)
+
+    if not acquired:
+        # 说明同一 biz_key 在执行，不能直接丢任务
+        # → 小延迟后重试（保护任务不丢）
+        logger.warning(
+            f"[processing-lock-fail] biz_key={biz_key} task_id={task_id} -> retry in 1s"
+        )
+        queue.push_retry(task, delay_seconds=1)
+        return
+
+    try:
+        # -------------------------------
+        # Step 1: 真正执行
+        # -------------------------------
+        logger.info(
+            f"[execute] task_id={task_id} retry_count={retry_count} from={task.get('_from')}"
+        )
+        ok = execute_task(task)
+
+    finally:
+        # Always release processing lock
+        queue.end_processing(biz_key)
+
+    # -------------------------------
+    # Step 2: 执行成功
+    # -------------------------------
+    if ok:
+        logger.info(f"[success] {task_id}")
+        return
+
+    # -------------------------------
+    # Step 3: 执行失败 → 进入重试
+    # -------------------------------
+    task["retry_count"] = retry_count + 1
+
+    if task["retry_count"] > max_retries:
+        # 超过最大重试次数 → DLQ
+        logger.error(f"[dlq] {task_id} after {task['retry_count']} attempts")
+        queue.push_dlq(task)
+        return
+
+    # retry with exponential backoff
+    delay = 2 ** task["retry_count"]
+    logger.warning(f"[retry] {task_id} delay={delay}s")
+    queue.push_retry(task, delay_seconds=delay)
+
+
+# ----------------------------------------------------------------------
+# Main worker loop
 # ----------------------------------------------------------------------
 def worker_loop():
     queue = RedisQueue()
-
     logger.info("Worker started. Waiting for tasks...")
 
     while True:
-
-        # ---------------------------------------------------------------
-        # Step 1: process retry tasks (due)
-        # ---------------------------------------------------------------
-        retry_task = queue.pop_due_retry()
-        if retry_task:
-            logger.info(f"[retry] task_id={retry_task.get('task_id')} retry_count={retry_task['retry_count']}")
-
-            ok = execute_task(retry_task)
-            if ok:
-                logger.info(f"[success-after-retry] {retry_task['task_id']}")
-            else:
-                # still failed → check max retries
-                retry_task["retry_count"] += 1
-                if retry_task["retry_count"] > retry_task.get("max_retries", 3):
-                    logger.error(f"[dlq] {retry_task['task_id']} after retries")
-                    queue.push_dlq(retry_task)
-                else:
-                    delay = 2 ** retry_task["retry_count"]
-                    logger.warning(f"[retry-again] {retry_task['task_id']} delay={delay}s")
-                    queue.push_retry(retry_task, delay)
-            continue  # go back to loop
-
-        # ---------------------------------------------------------------
-        # Step 2: normal queue blocking pop
-        # ---------------------------------------------------------------
-        task = queue.dequeue_priority(timeout=5)
-        if task is None:
-            # no new task
+        task = fetch_next_task(queue)
+        if not task:
             continue
 
-        logger.info(f"[processing] task_id={task.get('task_id')} retry_count={task['retry_count']}")
-
-        ok = execute_task(task)
-        if ok:
-            logger.info(f"[success] {task['task_id']}")
-            continue
-
-        # fail
-        task["retry_count"] += 1
-        if task["retry_count"] > task.get("max_retries", 3):
-            logger.error(f"[dlq] {task['task_id']}")
-            queue.push_dlq(task)
-        else:
-            delay = 2 ** task["retry_count"]
-            logger.warning(f"[retry] {task['task_id']} delay={delay}s")
-            queue.push_retry(task, delay)
+        run_task(task, queue)
 
 
 if __name__ == "__main__":

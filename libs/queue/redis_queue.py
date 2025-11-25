@@ -14,6 +14,9 @@ class RedisQueue:
       - main queue:    tasks:default
       - retry queue:   tasks:retry  (sorted set: score = available_at timestamp)
       - dead-letter:   tasks:dlq
+
+      - idempotency key: idempotency:{biz_key} -> task_id
+      - processing key:  processing:{biz_key}  -> task_id (short TTL)
     """
 
     def __init__(
@@ -29,6 +32,10 @@ class RedisQueue:
         self.queue_key = queue_key
         self.retry_key = retry_key
         self.dlq_key = dlq_key
+
+        # 幂等 & 执行锁 key 前缀
+        self.idempotency_prefix = "idempotency:"
+        self.processing_prefix = "processing:"
 
     # ----------------------------------------------------------------------
     # Push new task
@@ -106,3 +113,52 @@ class RedisQueue:
         """For API /dlq: show first N items"""
         items = self.r.lrange(self.dlq_key, 0, limit - 1)
         return [json.loads(i) for i in items]
+
+    # ----------------------------------------------------------------------
+    # Idempotency helpers
+    # ----------------------------------------------------------------------
+
+    def get_idempotency(self, biz_key: str) -> Optional[str]:
+        """
+        返回已存在的幂等 task_id，如不存在则为 None。
+        """
+        key = f"{self.idempotency_prefix}{biz_key}"
+        val = self.r.get(key)
+        return val if val else None
+
+    def set_idempotency(self, biz_key: str, task_id: str, ttl_seconds: int = 24 * 3600) -> None:
+        """
+        设置幂等 key，默认 TTL 24h。
+        """
+        key = f"{self.idempotency_prefix}{biz_key}"
+        # ex 指定 TTL（秒）
+        self.r.set(key, task_id, ex=ttl_seconds)
+
+    # ----------------------------------------------------------------------
+    # Processing lock helpers
+    # ----------------------------------------------------------------------
+    def start_processing(self, biz_key: Optional[str], task_id: str, ttl_seconds: int = 3600) -> bool:
+        """
+        为 biz_key 设置处理锁：
+          - 若 biz_key 为空，直接返回 True
+          - 若 processing:{biz_key} 已存在，返回 False（表示已有任务在处理）
+          - 否则 SETNX 并返回 True
+
+        TTL 默认 1 小时，避免 Worker 崩溃时留下永久死锁。
+        """
+        if not biz_key:
+            return True
+
+        key = f"{self.processing_prefix}{biz_key}"
+        # NX: only set if not exists
+        ok = self.r.set(key, task_id, nx=True, ex=ttl_seconds)
+        return bool(ok)
+
+    def end_processing(self, biz_key: Optional[str]) -> None:
+        """
+        处理结束后删除 processing 锁。
+        """
+        if not biz_key:
+            return
+        key = f"{self.processing_prefix}{biz_key}"
+        self.r.delete(key)

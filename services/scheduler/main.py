@@ -4,6 +4,10 @@ import logging
 import time
 
 from libs.queue.redis_queue import RedisQueue
+from libs.metrics.prom_metrics import (
+    observe_scheduler_latency,
+    record_retry,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("scheduler")
@@ -11,13 +15,9 @@ logger = logging.getLogger("scheduler")
 
 class SchedulerService:
     """
-    Day 7: 延迟队列 / 周期任务雏形
-    -------------------------------------------------
-    Redis 结构:
-      - main queue: tasks:default  (LIST)
-      - retry queue: tasks:retry   (ZSET: score = available_at timestamp)
-    -------------------------------------------------
-    定期扫描 ZSET, 将到期任务移回主队列.
+    Day 7 + Day 11:
+    - ZSET 延迟队列扫描
+    - metrics: scheduler_scan_seconds
     """
 
     def __init__(self, host: str = "127.0.0.1", port: int = 6379, scan_interval: int = 2):
@@ -28,15 +28,32 @@ class SchedulerService:
         logger.info("🚀 Scheduler started (scan_interval=%ds)", self.scan_interval)
         while True:
             try:
+                t0 = time.time()
+
                 now = int(time.time())
-                # 获取到期任务（最多 10 条，防止批量阻塞）
-                ready_items = self.queue.r.zrangebyscore(self.queue.retry_key, 0, now, start=0, num=10)
+
+                ready_items = self.queue.r.zrangebyscore(
+                    self.queue.retry_key, 0, now, start=0, num=10
+                )
+
                 if ready_items:
-                    logger.info("⏰ %d tasks ready for retry, moving to main queue...", len(ready_items))
+                    logger.info(
+                        "⏰ %d tasks ready for retry, moving to main queue...",
+                        len(ready_items),
+                    )
+
                     for item in ready_items:
+                        # 统计 retry 次数（scheduler 也属于 retry 恢复）
+                        record_retry()
+
                         self.queue.r.zrem(self.queue.retry_key, item)
                         self.queue.r.lpush(self.queue.queue_key, item)
+
+                # observe scan latency
+                observe_scheduler_latency(time.time() - t0)
+
                 await asyncio.sleep(self.scan_interval)
+
             except Exception as e:
                 logger.exception("Scheduler loop error: %s", e)
                 await asyncio.sleep(self.scan_interval)

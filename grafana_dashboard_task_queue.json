@@ -1,0 +1,95 @@
+{
+  "id": null,
+  "title": "Distributed Task Queue Dashboard",
+  "tags": ["task_queue", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Queue Depth",
+      "datasource": "prometheus",
+      "targets": [
+        { "expr": "queue_depth{job=\"task_queue_api\"}" }
+      ],
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 3 }
+    },
+    {
+      "type": "stat",
+      "title": "Total Enqueued Tasks",
+      "datasource": "prometheus",
+      "targets": [
+        { "expr": "task_enqueued_total{job=\"task_queue_api\"}" }
+      ],
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 3 }
+    },
+    {
+      "type": "stat",
+      "title": "Failed Tasks",
+      "datasource": "prometheus",
+      "targets": [
+        { "expr": "task_failed_total{job=\"task_queue_api\"}" }
+      ],
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 3 }
+    },
+    {
+      "type": "stat",
+      "title": "Retry Count",
+      "datasource": "prometheus",
+      "targets": [
+        { "expr": "task_retry_total{job=\"task_queue_api\"}" }
+      ],
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 3 }
+    },
+    {
+      "type": "graph",
+      "title": "Worker Task Processing Histogram",
+      "datasource": "prometheus",
+      "targets": [
+        {
+          "expr": "rate(task_processing_seconds_bucket{job=\"task_queue_api\"}[1m])",
+          "legendFormat": "le {{le}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 3, "w": 12, "h": 8 }
+    },
+    {
+      "type": "graph",
+      "title": "Worker Task Processing p95",
+      "datasource": "prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(task_processing_seconds_bucket{job=\"task_queue_api\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 3, "w": 12, "h": 8 }
+    },
+    {
+      "type": "graph",
+      "title": "Scheduler Scan Latency",
+      "datasource": "prometheus",
+      "targets": [
+        {
+          "expr": "rate(scheduler_scan_seconds_bucket{job=\"task_queue_api\"}[1m])",
+          "legendFormat": "le {{le}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 11, "w": 12, "h": 8 }
+    },
+    {
+      "type": "graph",
+      "title": "API Latency (POST /tasks)",
+      "datasource": "prometheus",
+      "targets": [
+        {
+          "expr": "rate(api_latency_seconds_bucket{job=\"task_queue_api\"}[1m])",
+          "legendFormat": "le {{le}}"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 11, "w": 12, "h": 8 }
+    }
+  ]
+}

@@ -118,3 +118,10 @@ def metrics_test():
     record_retry()
     update_queue_depth(3)
     return {"ok": True}
+
+def debug_key():
+    req = TaskCreate(payload={"task_id": str(uuid.uuid4())})
+    create_task(req,biz_key="zhen4")
+    return 0
+
+

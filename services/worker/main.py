@@ -22,8 +22,9 @@ logging.basicConfig(
 # 模拟业务逻辑：80% 成功 / 20% 失败
 # ----------------------------------------------------------------------
 def execute_task(task: dict) -> bool:
-    time.sleep(3)
-    if task["payload"].get("force_fail"):
+    t = random.uniform(0.005, 0.02)  # 5ms ~ 20ms
+    time.sleep(t)
+    if task['payload'].get('force_fail'):
         return False
     return random.random() >= 0.2
 

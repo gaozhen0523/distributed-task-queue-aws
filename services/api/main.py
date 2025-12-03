@@ -9,7 +9,7 @@ from libs.metrics.prom_metrics import registry, record_enqueue, record_fail, rec
     observe_api_latency
 from libs.queue.redis_queue import RedisQueue
 from libs.queue.task_priority import Priority
-
+from libs.queue.auto_scale import AutoScaler
 
 app = FastAPI(title="Distributed Task Queue API", version="0.1.0")
 
@@ -118,6 +118,14 @@ def metrics_test():
     record_retry()
     update_queue_depth(3)
     return {"ok": True}
+
+@app.get("/autoscale/suggest")
+def autoscale_suggest():
+    try:
+        scaler = AutoScaler()
+        return scaler.get_suggestion()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def debug_key():
     req = TaskCreate(payload={"task_id": str(uuid.uuid4())})

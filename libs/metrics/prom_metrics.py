@@ -1,5 +1,5 @@
 # libs/metrics/prom_metrics.py
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 # ---------------------------------------------------------
 # 独立 registry，避免默认全局污染
@@ -64,26 +64,33 @@ api_latency_seconds = Histogram(
     registry=registry,
 )
 
+
 # ---------------------------------------------------------
 # Helper APIs
 # ---------------------------------------------------------
 def record_enqueue():
     task_enqueued_total.inc()
 
+
 def record_fail():
     task_failed_total.inc()
+
 
 def record_retry():
     task_retry_total.inc()
 
+
 def update_queue_depth(size: int):
     queue_depth.set(size)
+
 
 def observe_task_latency(seconds: float):
     task_processing_seconds.observe(seconds)
 
+
 def observe_scheduler_latency(seconds: float):
     scheduler_scan_seconds.observe(seconds)
+
 
 def observe_api_latency(seconds: float):
     api_latency_seconds.observe(seconds)

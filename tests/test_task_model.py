@@ -1,5 +1,5 @@
 from libs.queue.models import Task, TaskStatus
-import time
+
 
 def test_task_retry_logic():
     t = Task({"job": 1}, max_retries=2)

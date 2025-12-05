@@ -1,9 +1,11 @@
 # libs/queue/redis_queue.py
 import json
 import time
-from typing import Optional, Dict, Any
-from libs.queue.task_priority import Priority
+from typing import Any
+
 import redis
+
+from libs.queue.task_priority import Priority
 
 
 class RedisQueue:
@@ -40,7 +42,7 @@ class RedisQueue:
     # ----------------------------------------------------------------------
     # Push new task
     # ----------------------------------------------------------------------
-    def enqueue(self, task: Dict[str, Any], priority: str = Priority.MEDIUM) -> None:
+    def enqueue(self, task: dict[str, Any], priority: str = Priority.MEDIUM) -> None:
         """Push a task to the queue (LPUSH so BRPOP pops in FIFO)."""
         payload = json.dumps(task)
         key = f"{self.queue_key}:{priority}"
@@ -49,7 +51,7 @@ class RedisQueue:
     # ----------------------------------------------------------------------
     # Blocking pop
     # ----------------------------------------------------------------------
-    def dequeue(self, block: bool = True, timeout: int = 5) -> Optional[Dict[str, Any]]:
+    def dequeue(self, block: bool = True, timeout: int = 5) -> dict[str, Any] | None:
         """
         BRPOP:
           - If block=True: wait up to timeout seconds
@@ -71,7 +73,11 @@ class RedisQueue:
             return None
 
     def dequeue_priority(self, timeout=5):
-        queues = [f"{self.queue_key}:{Priority.HIGH}", f"{self.queue_key}:{Priority.MEDIUM}", f"{self.queue_key}:{Priority.LOW}"]
+        queues = [
+            f"{self.queue_key}:{Priority.HIGH}",
+            f"{self.queue_key}:{Priority.MEDIUM}",
+            f"{self.queue_key}:{Priority.LOW}",
+        ]
         result = self.r.brpop(queues, timeout=timeout)
         if result is None:
             return None
@@ -82,12 +88,12 @@ class RedisQueue:
     # Retry queue (sorted set)
     # available_at = now + backoff_seconds
     # ----------------------------------------------------------------------
-    def push_retry(self, task: Dict[str, Any], delay_seconds: int) -> None:
+    def push_retry(self, task: dict[str, Any], delay_seconds: int) -> None:
         payload = json.dumps(task)
         available_at = int(time.time()) + delay_seconds
         self.r.zadd(self.retry_key, {payload: available_at})
 
-    def pop_due_retry(self) -> Optional[Dict[str, Any]]:
+    def pop_due_retry(self) -> dict[str, Any] | None:
         """
         Return tasks whose available_at <= now.
 
@@ -106,7 +112,7 @@ class RedisQueue:
     # ----------------------------------------------------------------------
     # Dead Letter Queue
     # ----------------------------------------------------------------------
-    def push_dlq(self, task: Dict[str, Any]):
+    def push_dlq(self, task: dict[str, Any]):
         self.r.lpush(self.dlq_key, json.dumps(task))
 
     def list_dlq(self, limit: int = 50):
@@ -118,7 +124,7 @@ class RedisQueue:
     # Idempotency helpers
     # ----------------------------------------------------------------------
 
-    def get_idempotency(self, biz_key: str) -> Optional[str]:
+    def get_idempotency(self, biz_key: str) -> str | None:
         """
         返回已存在的幂等 task_id，如不存在则为 None。
         """
@@ -126,7 +132,9 @@ class RedisQueue:
         val = self.r.get(key)
         return val if val else None
 
-    def set_idempotency(self, biz_key: str, task_id: str, ttl_seconds: int = 24 * 3600) -> None:
+    def set_idempotency(
+        self, biz_key: str, task_id: str, ttl_seconds: int = 24 * 3600
+    ) -> None:
         """
         设置幂等 key，默认 TTL 24h。
         """
@@ -137,7 +145,9 @@ class RedisQueue:
     # ----------------------------------------------------------------------
     # Processing lock helpers
     # ----------------------------------------------------------------------
-    def start_processing(self, biz_key: Optional[str], task_id: str, ttl_seconds: int = 3600) -> bool:
+    def start_processing(
+        self, biz_key: str | None, task_id: str, ttl_seconds: int = 3600
+    ) -> bool:
         """
         为 biz_key 设置处理锁：
           - 若 biz_key 为空，直接返回 True
@@ -154,7 +164,7 @@ class RedisQueue:
         ok = self.r.set(key, task_id, nx=True, ex=ttl_seconds)
         return bool(ok)
 
-    def end_processing(self, biz_key: Optional[str]) -> None:
+    def end_processing(self, biz_key: str | None) -> None:
         """
         处理结束后删除 processing 锁。
         """

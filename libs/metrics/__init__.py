@@ -1,5 +1,5 @@
 # libs/metrics/prom_metrics.py
-from prometheus_client import Counter, Gauge, CollectorRegistry
+from prometheus_client import CollectorRegistry, Counter, Gauge
 
 # 独立 registry，避免默认全局污染
 registry = CollectorRegistry(auto_describe=True)
@@ -28,15 +28,19 @@ queue_depth = Gauge(
     registry=registry,
 )
 
+
 # ---- Helper API ----
 def record_enqueue():
     task_enqueued_total.inc()
 
+
 def record_fail():
     task_failed_total.inc()
 
+
 def record_retry():
     task_retry_total.inc()
+
 
 def update_queue_depth(size: int):
     queue_depth.set(size)

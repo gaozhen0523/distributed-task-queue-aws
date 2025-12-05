@@ -1,6 +1,6 @@
 # libs/queue/auto_scale.py
 
-from typing import Dict
+
 from libs.queue.redis_queue import RedisQueue
 from libs.queue.task_priority import Priority
 
@@ -14,7 +14,7 @@ class AutoScaler:
     def __init__(self):
         self.queue = RedisQueue()
 
-    def get_queue_depths(self) -> Dict[str, int]:
+    def get_queue_depths(self) -> dict[str, int]:
         """统计三个优先级队列的长度。"""
         r = self.queue.r
         base = self.queue.queue_key
@@ -43,7 +43,7 @@ class AutoScaler:
             return 4
         return 6
 
-    def get_suggestion(self) -> Dict:
+    def get_suggestion(self) -> dict:
         """返回 autoscaling 建议 JSON。"""
         depths = self.get_queue_depths()
         total = sum(depths.values())

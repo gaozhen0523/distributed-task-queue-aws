@@ -1,8 +1,8 @@
-#libs/queue/models.py
-from enum import Enum
-from datetime import datetime, timedelta
-from typing import Optional
+# libs/queue/models.py
 import uuid
+from datetime import datetime, timedelta
+from enum import Enum
+
 
 class TaskStatus(str, Enum):
     PENDING = "PENDING"
@@ -11,6 +11,7 @@ class TaskStatus(str, Enum):
     FAILED = "FAILED"
     RETRY = "RETRY"
 
+
 class Task:
     def __init__(self, payload: dict, max_retries: int = 3):
         self.id = str(uuid.uuid4())
@@ -18,7 +19,7 @@ class Task:
         self.status = TaskStatus.PENDING
         self.retry_count = 0
         self.max_retries = max_retries
-        self.retry_after: Optional[datetime] = None
+        self.retry_after: datetime | None = None
         self.created_at = datetime.utcnow()
         self.updated_at = self.created_at
 
@@ -35,7 +36,7 @@ class Task:
         self.updated_at = datetime.utcnow()
         if self.retry_count < self.max_retries:
             self.status = TaskStatus.RETRY
-            delay = 2 ** self.retry_count   # 指数退避
+            delay = 2**self.retry_count  # 指数退避
             self.retry_after = datetime.utcnow() + timedelta(seconds=delay)
             self.retry_count += 1
         else:

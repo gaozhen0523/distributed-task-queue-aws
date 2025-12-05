@@ -24,6 +24,7 @@ import httpx
 
 port = 8001
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Load test for task queue API")
     parser.add_argument(
@@ -68,6 +69,7 @@ def parse_args() -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 # 单进程内：异步 worker 逻辑
 # ---------------------------------------------------------------------------
+
 
 async def _load_worker(
     worker_id: int,
@@ -129,9 +131,7 @@ async def _run_in_process(
     单个进程入口：启动多个协程 worker，并汇总结果。
     """
     tasks = [
-        asyncio.create_task(
-            _load_worker(i, url, biz_key, duration, timeout)
-        )
+        asyncio.create_task(_load_worker(i, url, biz_key, duration, timeout))
         for i in range(concurrency)
     ]
     results = await asyncio.gather(*tasks)
@@ -172,6 +172,7 @@ def _process_entry(args: Tuple[int, str, str, int, float, int]) -> Dict[str, Any
 # ---------------------------------------------------------------------------
 # 汇总 & 百分位工具
 # ---------------------------------------------------------------------------
+
 
 def _percentile(values: List[float], p: float) -> float:
     if not values:

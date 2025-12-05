@@ -3,13 +3,15 @@ import asyncio
 import logging
 import time
 
-from libs.queue.redis_queue import RedisQueue
 from libs.metrics.prom_metrics import (
     observe_scheduler_latency,
     record_retry,
 )
+from libs.queue.redis_queue import RedisQueue
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("scheduler")
 
 
@@ -20,7 +22,9 @@ class SchedulerService:
     - metrics: scheduler_scan_seconds
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 6379, scan_interval: int = 2):
+    def __init__(
+        self, host: str = "127.0.0.1", port: int = 6379, scan_interval: int = 2
+    ):
         self.queue = RedisQueue(host=host, port=port)
         self.scan_interval = scan_interval
 

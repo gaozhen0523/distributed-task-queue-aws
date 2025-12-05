@@ -1,16 +1,14 @@
 # services/worker/main.py
-import json
+import logging
 import random
 import time
-import logging
-from datetime import datetime
 
-from libs.queue.redis_queue import RedisQueue
 from libs.metrics.prom_metrics import (
+    observe_task_latency,
     record_fail,
     record_retry,
-    observe_task_latency,
 )
+from libs.queue.redis_queue import RedisQueue
 
 logger = logging.getLogger("worker")
 logging.basicConfig(
@@ -18,15 +16,17 @@ logging.basicConfig(
     format="%(asctime)s [worker] %(levelname)s %(message)s",
 )
 
+
 # ----------------------------------------------------------------------
 # 模拟业务逻辑：80% 成功 / 20% 失败
 # ----------------------------------------------------------------------
 def execute_task(task: dict) -> bool:
     t = random.uniform(0.005, 0.02)  # 5ms ~ 20ms
     time.sleep(t)
-    if task['payload'].get('force_fail'):
+    if task["payload"].get("force_fail"):
         return False
     return random.random() >= 0.2
+
 
 # ----------------------------------------------------------------------
 # 获取下一条任务（retry 优先级更高）
@@ -43,6 +43,7 @@ def fetch_next_task(queue: RedisQueue):
         return normal_task
 
     return None
+
 
 # ----------------------------------------------------------------------
 # 统一的任务执行逻辑（幂等 + 重试 + dlq）
@@ -69,7 +70,8 @@ def run_task(task: dict, queue: RedisQueue):
     t0 = time.time()
     try:
         logger.info(
-            f"[execute] task_id={task_id} retry_count={retry_count} from={task.get('_from')}"
+            f"[execute] task_id={task_id} retry_count={retry_count} "
+            f"from={task.get('_from')}"
         )
         ok = execute_task(task)
     finally:
@@ -102,6 +104,7 @@ def run_task(task: dict, queue: RedisQueue):
     record_retry()  # 🔥 记录 retry 次数
     queue.push_retry(task, delay_seconds=delay)
 
+
 # ----------------------------------------------------------------------
 # Main worker loop
 # ----------------------------------------------------------------------
@@ -115,6 +118,7 @@ def worker_loop():
             continue
 
         run_task(task, queue)
+
 
 if __name__ == "__main__":
     worker_loop()

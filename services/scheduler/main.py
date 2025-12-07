@@ -1,7 +1,10 @@
 # services/scheduler/main.py
 import asyncio
 import logging
+import os
 import time
+
+from dotenv import load_dotenv
 
 from libs.metrics.prom_metrics import (
     observe_scheduler_latency,
@@ -15,6 +18,9 @@ logging.basicConfig(
 logger = logging.getLogger("scheduler")
 
 
+load_dotenv(override=False)
+
+
 class SchedulerService:
     """
     Day 7 + Day 11:
@@ -23,9 +29,13 @@ class SchedulerService:
     """
 
     def __init__(
-        self, host: str = "127.0.0.1", port: int = 6379, scan_interval: int = 2
+        self,
+        host: str = os.getenv("REDIS_HOST", "127.0.0.1"),
+        port: int = os.getenv("REDIS_PORT", 6379),
+        db: int = os.getenv("REDIS_DB", 0),
+        scan_interval: int = 2,
     ):
-        self.queue = RedisQueue(host=host, port=port)
+        self.queue = RedisQueue(host=host, port=port, db=db)
         self.scan_interval = scan_interval
 
     async def run(self):

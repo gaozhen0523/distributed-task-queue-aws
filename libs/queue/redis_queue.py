@@ -1,11 +1,15 @@
 # libs/queue/redis_queue.py
 import json
+import os
 import time
 from typing import Any
 
 import redis
+from dotenv import load_dotenv
 
 from libs.queue.task_priority import Priority
+
+load_dotenv(override=False)
 
 
 class RedisQueue:
@@ -23,9 +27,9 @@ class RedisQueue:
 
     def __init__(
         self,
-        host: str = "127.0.0.1",
-        port: int = 6379,
-        db: int = 0,
+        host: str = os.getenv("REDIS_HOST", "127.0.0.1"),
+        port: int = os.getenv("REDIS_PORT", 6379),
+        db: int = os.getenv("REDIS_DB", 0),
         queue_key: str = "tasks:default",
         retry_key: str = "tasks:retry",
         dlq_key: str = "tasks:dlq",

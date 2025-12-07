@@ -28,6 +28,7 @@ module "vpc" {
   vpc_cidr            = var.vpc_cidr
   public_subnet_cidrs = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
+  availability_zones = ["us-east-1a", "us-east-1c"]
 
   enable_nat_gateway = true
   tags               = local.tags
@@ -45,4 +46,12 @@ module "ecr" {
 
   repository_names = var.ecr_repository_names
   tags             = local.tags
+}
+
+module "sg" {
+  source = "../../modules/sg"
+
+  vpc_id        = module.vpc.vpc_id
+  allowed_cidrs = ["0.0.0.0/0"]
+  tags          = local.tags
 }

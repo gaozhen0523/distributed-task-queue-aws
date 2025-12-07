@@ -22,3 +22,15 @@ output "ecr_repository_urls" {
   description = "Map of ECR repository URLs"
   value       = module.ecr.repository_urls
 }
+
+output "dist_api_alb_dns_name" {
+  value = module.dist_api_service.alb_dns_name
+}
+
+output "dist_scheduler_alb_dns_name" {
+  value = module.dist_scheduler_service.alb_dns_name
+}
+
+output "dist_worker_alb_dns_name" {
+  value = module.dist_worker_service.alb_dns_name
+}

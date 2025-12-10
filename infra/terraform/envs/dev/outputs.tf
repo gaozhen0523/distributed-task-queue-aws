@@ -49,13 +49,57 @@ output "dist_api_service_name" {
   value       = module.dist_api_service.service_name
 }
 
-output "github_actions_role_arn" {
-  description = "IAM Role ARN for GitHub Actions OIDC"
-  value       = aws_iam_role.github_actions.arn
-}
-
 output "dist_api_environment_variables" {
   description = "Env vars for dist-api ECS service"
   value       = module.dist_api_service.environment_variables
   sensitive = true
+}
+
+# dist-scheduler ECS outputs
+output "dist_scheduler_service_name" {
+  value = module.dist_scheduler_service.service_name
+}
+
+output "dist_scheduler_task_definition_arn" {
+  value = module.dist_scheduler_service.task_definition_arn
+}
+
+output "dist_scheduler_task_role_arn" {
+  value = module.dist_scheduler_service.task_role_arn
+}
+
+output "dist_scheduler_task_execution_role_arn" {
+  value = module.dist_scheduler_service.task_execution_role_arn
+}
+
+output "dist_scheduler_environment_variables" {
+  value     = module.dist_scheduler_service.environment_variables
+  sensitive = true
+}
+
+# dist-worker ECS outputs
+output "dist_worker_service_name" {
+  value = module.dist_worker_service.service_name
+}
+
+output "dist_worker_task_definition_arn" {
+  value = module.dist_worker_service.task_definition_arn
+}
+
+output "dist_worker_task_role_arn" {
+  value = module.dist_worker_service.task_role_arn
+}
+
+output "dist_worker_task_execution_role_arn" {
+  value = module.dist_worker_service.task_execution_role_arn
+}
+
+output "dist_worker_environment_variables" {
+  value     = module.dist_worker_service.environment_variables
+  sensitive = true
+}
+
+output "github_actions_role_arn" {
+  description = "IAM Role ARN for GitHub Actions OIDC"
+  value       = aws_iam_role.github_actions.arn
 }

@@ -81,8 +81,8 @@ data "aws_iam_policy_document" "github_actions_policy" {
       "iam:PassRole"
     ]
     resources = [
-      "arn:aws:iam::*:role/dist-api-task-role",
-      "arn:aws:iam::*:role/dist-api-execution-role"
+      "arn:aws:iam::*:role/dist-*-task-role",
+      "arn:aws:iam::*:role/dist-*-execution-role"
     ]
   }
 

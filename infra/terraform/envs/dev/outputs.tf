@@ -1,3 +1,4 @@
+#infra/terraform/envs/dev/outputs.tf
 output "vpc_id" {
   description = "VPC ID"
   value       = module.vpc.vpc_id
@@ -30,4 +31,31 @@ output "dist_api_alb_dns_name" {
 output "redis_endpoint" {
   description = "ElastiCache Redis endpoint for this environment"
   value       = module.redis.redis_endpoint
+}
+
+
+output "dist_api_task_role_arn" {
+  description = "Task IAM role ARN for distributed-task-queue"
+  value       = module.dist_api_service.task_role_arn
+}
+
+output "dist_api_task_execution_role_arn" {
+  description = "Task execution IAM role ARN for distributed-task-queue"
+  value       = module.dist_api_service.task_execution_role_arn
+}
+
+output "dist_api_service_name" {
+  description = "ECS service name for distributed-task-queue"
+  value       = module.dist_api_service.service_name
+}
+
+output "github_actions_role_arn" {
+  description = "IAM Role ARN for GitHub Actions OIDC"
+  value       = aws_iam_role.github_actions.arn
+}
+
+output "dist_api_environment_variables" {
+  description = "Env vars for dist-api ECS service"
+  value       = module.dist_api_service.environment_variables
+  sensitive = true
 }

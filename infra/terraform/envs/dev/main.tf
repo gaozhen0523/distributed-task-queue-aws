@@ -10,6 +10,13 @@ terraform {
   }
 
   # 后面如果你想用 remote state (S3 + DynamoDB)，可以在这里加 backend "s3" 块
+  backend "s3" {
+    bucket         = "distributed-task-queue-tfstate"
+    key            = "envs/dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "distributed-task-queue-tfstate-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {

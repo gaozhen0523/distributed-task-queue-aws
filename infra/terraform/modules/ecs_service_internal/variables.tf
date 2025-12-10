@@ -1,3 +1,4 @@
+#infra/terraform/modules/ecs_service_internal/variables.tf
 variable "service_name" {
   type = string
 }

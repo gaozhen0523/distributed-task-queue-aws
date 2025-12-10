@@ -1,0 +1,88 @@
+#.github/workflows/deploy-dist-api.yml
+name: Deploy dist-api
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "services/api/**"
+      - "docker/api.Dockerfile"
+      - "infra/terraform/app/dist-api/**"
+      - ".github/workflows/deploy-dist-api.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: dist-api
+      TF_APP_DIR: infra/terraform/app/dist-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "Building image ${IMAGE_URI}"
+          docker build -f docker/api_gateway.Dockerfile -t "${IMAGE_URI}" .
+          docker push "${IMAGE_URI}"
+
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_APP_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform apply (register task definition)
+        working-directory: ${{ env.TF_APP_DIR }}
+        env:
+          TF_VAR_image_tag: ${{ steps.build-image.outputs.image_tag }}
+          TF_VAR_aws_region: ${{ env.AWS_REGION }}
+        run: terraform apply -auto-approve -input=false
+
+      - name: Read Terraform outputs
+        id: tf-output
+        working-directory: ${{ env.TF_APP_DIR }}
+        run: |
+          TASK_DEF_ARN=$(terraform output -raw task_definition_arn)
+          CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
+          SERVICE_NAME=$(terraform output -raw dist_api_service_name)
+
+          echo "task_definition_arn=${TASK_DEF_ARN}" >> $GITHUB_OUTPUT
+          echo "cluster_name=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          echo "service_name=${SERVICE_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "${{ steps.tf-output.outputs.cluster_name }}" \
+            --service "${{ steps.tf-output.outputs.service_name }}" \
+            --task-definition "${{ steps.tf-output.outputs.task_definition_arn }}" \
+            --force-new-deployment

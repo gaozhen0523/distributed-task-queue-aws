@@ -1,3 +1,4 @@
+#infra/terraform/envs/dev/dist_scheduler.tf
 module "dist_scheduler_service" {
   source = "../../modules/ecs_service"
 
@@ -19,7 +20,7 @@ module "dist_scheduler_service" {
 
   environment_variables = {
   # --- Redis (TEMP PLACEHOLDER) ---
-  REDIS_HOST          = "host.docker.internal"
+  REDIS_HOST          = module.redis.redis_endpoint
   REDIS_PORT          = "6379"
   REDIS_DB            = "0"
 

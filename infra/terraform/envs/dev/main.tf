@@ -1,3 +1,4 @@
+#infra/terraform/envs/dev/main.tf
 terraform {
   required_version = ">= 1.5.0"
 
@@ -54,4 +55,19 @@ module "sg" {
   vpc_id        = module.vpc.vpc_id
   allowed_cidrs = ["0.0.0.0/0"]
   tags          = local.tags
+}
+
+module "redis" {
+  source = "../../modules/redis"
+
+  name   = "${var.project_name}-${var.environment}-redis"
+  vpc_id = module.vpc.vpc_id
+
+  # 放在私有子网
+  subnet_ids = module.vpc.private_subnet_ids
+
+  # 允许 ECS Service SG 访问 Redis
+  allowed_security_group_ids = [module.sg.ecs_service_sg_id]
+
+  tags = local.tags
 }

@@ -1,3 +1,4 @@
+#infra/terraform/envs/dev/dist_api.tf
 module "dist_api_service" {
   source = "../../modules/ecs_service"
 
@@ -23,7 +24,7 @@ module "dist_api_service" {
 
   environment_variables = {
   # --- Redis (TEMP PLACEHOLDER) ---
-  REDIS_HOST          = "host.docker.internal"
+  REDIS_HOST          = module.redis.redis_endpoint
   REDIS_PORT          = "6379"
   REDIS_DB            = "0"
 

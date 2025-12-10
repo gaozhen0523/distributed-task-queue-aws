@@ -37,7 +37,6 @@ resource "aws_elasticache_replication_group" "this" {
   node_type      = var.node_type
 
   # 关闭集群模式，单节点开发环境
-  number_cache_clusters      = 1
   automatic_failover_enabled = false
 
   subnet_group_name = aws_elasticache_subnet_group.this.name

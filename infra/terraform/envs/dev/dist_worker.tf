@@ -1,6 +1,6 @@
 #infra/terraform/envs/dev/dist_worker.tf
 module "dist_worker_service" {
-  source = "../../modules/ecs_service"
+  source = "../../modules/ecs_service_internal"
 
   service_name = "dist-worker"
 

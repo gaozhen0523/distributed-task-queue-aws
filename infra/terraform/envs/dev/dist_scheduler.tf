@@ -1,6 +1,6 @@
 #infra/terraform/envs/dev/dist_scheduler.tf
 module "dist_scheduler_service" {
-  source = "../../modules/ecs_service"
+  source = "../../modules/ecs_service_internal"
 
   service_name = "dist-scheduler"
 

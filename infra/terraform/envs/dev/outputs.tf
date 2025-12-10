@@ -27,14 +27,6 @@ output "dist_api_alb_dns_name" {
   value = module.dist_api_service.alb_dns_name
 }
 
-output "dist_scheduler_alb_dns_name" {
-  value = module.dist_scheduler_service.alb_dns_name
-}
-
-output "dist_worker_alb_dns_name" {
-  value = module.dist_worker_service.alb_dns_name
-}
-
 output "redis_endpoint" {
   description = "ElastiCache Redis endpoint for this environment"
   value       = module.redis.redis_endpoint

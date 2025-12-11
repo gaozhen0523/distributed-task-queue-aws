@@ -148,3 +148,8 @@ def debug_key():
 
 
 # test1
+
+
+@app.get("/test/error")
+def test_error():
+    raise RuntimeError("Intentional test error for CloudWatch logging")

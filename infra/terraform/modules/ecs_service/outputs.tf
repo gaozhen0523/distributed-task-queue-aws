@@ -40,3 +40,8 @@ output "environment_variables" {
   description = "Environment variables for the container"
   value       = var.environment_variables
 }
+
+output "alb_arn" {
+  description = "ARN of the ALB"
+  value       = aws_lb.this.arn
+}

@@ -133,10 +133,17 @@ def metrics_test():
 
 
 @app.get("/autoscale/suggest")
-def autoscale_suggest():
+def autoscale_suggest(cpu: float | None = None):
+    """
+    返回队列 backlog + 可选 CPU 百分比下的副本数建议。
+
+    用法示例：
+      GET /autoscale/suggest
+      GET /autoscale/suggest?cpu=72.5
+    """
     try:
         scaler = AutoScaler()
-        return scaler.get_suggestion()
+        return scaler.get_suggestion(cpu_percent=cpu)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

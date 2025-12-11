@@ -1,0 +1,15 @@
+{
+  "total_time_s": 15.81,
+  "total_requests": 3177,
+  "success": 3177,
+  "fail": 0,
+  "rps": 200.99,
+  "latency_avg_ms": 767.58,
+  "latency_p50_ms": 739.56,
+  "latency_p95_ms": 923.0,
+  "latency_p99_ms": 1422.52,
+  "raw_stdout": "Starting load test: url=http://dist-api-alb-863248708.us-east-1.elb.amazonaws.com/tasks, biz_key=load_test, duration=15s, total_concurrency=160, processes=16\n\n=== Load Test Summary ===\nTotal time: 15.81s\nTotal requests: 3177\n  Success: 3177\n  Fail:    0\n  RPS:     200.99 req/s\n\nLatency (ms):\n  avg = 767.58\n  p50 = 739.56\n  p95 = 923.00\n  p99 = 1422.52\n",
+  "return_code": 0,
+  "workers": 8,
+  "concurrency": 160
+}

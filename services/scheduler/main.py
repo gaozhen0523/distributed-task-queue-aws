@@ -10,7 +10,7 @@ from libs.metrics.prom_metrics import (
     observe_scheduler_latency,
     record_retry,
 )
-from libs.queue.redis_queue import RedisQueue
+from libs.queue.priority_queue import PriorityQueue
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -35,7 +35,8 @@ class SchedulerService:
         db: int = os.getenv("REDIS_DB", 0),
         scan_interval: int = 2,
     ):
-        self.queue = RedisQueue(host=host, port=port, db=db)
+        kind = os.getenv("QUEUE_KIND", "medium")
+        self.queue = PriorityQueue(host=host, port=port, db=db, kind=kind)
         self.scan_interval = scan_interval
 
     async def run(self):

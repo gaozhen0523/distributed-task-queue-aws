@@ -1,5 +1,6 @@
 # services/scheduler/main.py
 import asyncio
+import json
 import logging
 import os
 import time
@@ -45,24 +46,12 @@ class SchedulerService:
             try:
                 t0 = time.time()
 
-                now = int(time.time())
+                ready_task = self.queue.pop_due_retry()
 
-                ready_items = self.queue.r.zrangebyscore(
-                    self.queue.retry_key, 0, now, start=0, num=10
-                )
-
-                if ready_items:
-                    logger.info(
-                        "⏰ %d tasks ready for retry, moving to main queue...",
-                        len(ready_items),
-                    )
-
-                    for item in ready_items:
-                        # 统计 retry 次数（scheduler 也属于 retry 恢复）
-                        record_retry()
-
-                        self.queue.r.zrem(self.queue.retry_key, item)
-                        self.queue.r.lpush(self.queue.queue_key, item)
+                if ready_task:
+                    logger.info("task ready for retry -> main queue")
+                    record_retry()
+                    self.queue.r.lpush(self.queue.queue_key, json.dumps(ready_task))
 
                 # observe scan latency
                 observe_scheduler_latency(time.time() - t0)

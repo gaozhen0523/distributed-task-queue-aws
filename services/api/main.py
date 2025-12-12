@@ -3,6 +3,7 @@ import time
 import uuid
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from libs.queue.auto_scale import AutoScaler
 from libs.queue.redis_queue import RedisQueue
 from libs.queue.task_priority import Priority
 
+load_dotenv(override=False)
 app = FastAPI(title="Distributed Task Queue API", version="0.1.0")
 
 queue = RedisQueue()

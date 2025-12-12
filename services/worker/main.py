@@ -4,6 +4,8 @@ import os
 import random
 import time
 
+from dotenv import load_dotenv
+
 from libs.metrics.prom_metrics import (
     observe_task_latency,
     record_fail,
@@ -16,6 +18,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [worker] %(levelname)s %(message)s",
 )
+
+load_dotenv(override=False)
 
 
 # ----------------------------------------------------------------------

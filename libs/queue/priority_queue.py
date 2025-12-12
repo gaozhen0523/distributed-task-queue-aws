@@ -4,6 +4,10 @@ from typing import Any
 
 import redis
 
+queue_key: str = "tasks:default"
+retry_key: str = "tasks:retry"
+dlq_key: str = "tasks:dlq"
+
 
 class PriorityQueue:
     """
@@ -17,9 +21,9 @@ class PriorityQueue:
     """
 
     QUEUE_KEYS = {
-        "high": "queue:high",
-        "medium": "queue:medium",
-        "low": "queue:low",
+        "high": f"{queue_key}:high",
+        "medium": f"{queue_key}:medium",
+        "low": f"{queue_key}:low",
     }
 
     def __init__(self, host="127.0.0.1", port=6379, db=0, kind="medium"):
@@ -30,8 +34,8 @@ class PriorityQueue:
         self.r = redis.Redis(host=host, port=port, db=db)
 
         self.queue_key = self.QUEUE_KEYS[kind]
-        self.retry_key = f"retry:{kind}"
-        self.dlq_key = f"dlq:{kind}"
+        self.retry_key = f"{retry_key}:{kind}"
+        self.dlq_key = f"{dlq_key}:{kind}"
 
     # -------------------- 生产者 API --------------------
     def enqueue(self, task: dict[str, Any]):

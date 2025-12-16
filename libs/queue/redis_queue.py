@@ -43,6 +43,13 @@ class RedisQueue:
         self.idempotency_prefix = "idempotency:"
         self.processing_prefix = "processing:"
 
+    def get_processing(self, biz_key: str) -> str | None:
+        if not biz_key:
+            return None
+        key = f"{self.processing_prefix}{biz_key}"
+        val = self.r.get(key)
+        return val if val else None
+
     # ----------------------------------------------------------------------
     # Push new task
     # ----------------------------------------------------------------------

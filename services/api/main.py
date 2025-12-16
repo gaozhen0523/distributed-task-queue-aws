@@ -58,8 +58,13 @@ def create_task(req: TaskCreate, biz_key: str | None = None):
         # 幂等性
         if biz_key:
             existing = queue.get_idempotency(biz_key)
-            if existing:
-                task_id = existing
+
+            # 2) 是否已有 processing lock（任务正在被 worker 执行）
+            processing = queue.get_processing(biz_key)
+
+            if existing or processing:
+                # 返回已有 task_id（processing 优先）
+                task_id = processing or existing
                 reused = True
             else:
                 task_id = str(uuid.uuid4())

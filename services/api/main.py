@@ -4,10 +4,11 @@ import uuid
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
+from libs.logging.structured_logger import logger
 from libs.metrics.prom_metrics import (
     observe_api_latency,
     record_enqueue,
@@ -22,6 +23,31 @@ from libs.queue.task_priority import Priority
 
 load_dotenv(override=False)
 app = FastAPI(title="Distributed Task Queue API", version="0.1.0")
+
+
+@app.middleware("http")
+async def inject_trace_and_correlation(request: Request, call_next):
+    """
+    分布式任务系统 API 统一注入 trace_id / correlation_id：
+      - 优先使用上游 X-Trace-Id / X-Correlation-Id
+      - 否则生成新的 trace_id
+    """
+    header_trace_id = request.headers.get("X-Trace-Id") or request.headers.get(
+        "X-Trace-ID"
+    )
+    correlation_id = request.headers.get("X-Correlation-Id")
+
+    trace_id = header_trace_id or uuid.uuid4().hex
+
+    request.state.trace_id = trace_id
+    request.state.correlation_id = correlation_id
+
+    response = await call_next(request)
+    response.headers["X-Trace-Id"] = trace_id
+    if correlation_id:
+        response.headers["X-Correlation-Id"] = correlation_id
+    return response
+
 
 queue = RedisQueue()
 
@@ -48,7 +74,10 @@ class TaskAck(BaseModel):
 # POST /tasks  -> enqueue
 # ----------------------------------------------------------------------
 @app.post("/tasks", response_model=TaskAck)
-def create_task(req: TaskCreate, biz_key: str | None = None):
+def create_task(req: TaskCreate, request: Request, biz_key: str | None = None):
+    trace_id = getattr(request.state, "trace_id", None)
+    correlation_id = getattr(request.state, "correlation_id", None)
+
     t0 = time.time()
 
     try:
@@ -74,6 +103,8 @@ def create_task(req: TaskCreate, biz_key: str | None = None):
                     "retry_count": 0,
                     "max_retries": req.max_retries,
                     "biz_key": biz_key,
+                    "trace_id": trace_id,
+                    "correlation_id": correlation_id,
                 }
                 queue.enqueue(task, priority=req.priority)
                 queue.set_idempotency(
@@ -88,10 +119,23 @@ def create_task(req: TaskCreate, biz_key: str | None = None):
                 "retry_count": 0,
                 "max_retries": req.max_retries,
                 "biz_key": None,
+                "trace_id": trace_id,
+                "correlation_id": correlation_id,
             }
             queue.enqueue(task, priority=req.priority)
             record_enqueue()
 
+        logger.info(
+            "TASK_ENQUEUED",
+            trace_id=trace_id,
+            correlation_id=correlation_id,
+            extra={
+                "task_id": task_id,
+                "biz_key": biz_key,
+                "priority": req.priority,
+                "reused": reused,
+            },
+        )
         return TaskAck(
             task_id=task_id,
             accepted_at=time.time(),
@@ -165,5 +209,12 @@ def debug_key():
 
 
 @app.get("/test/error")
-def test_error():
+def test_error(request: Request):
+    trace_id = getattr(request.state, "trace_id", None)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    logger.error(
+        "TEST_ERROR_TRIGGERED",
+        trace_id=trace_id,
+        correlation_id=correlation_id,
+    )
     raise RuntimeError("Intentional test error for CloudWatch logging")

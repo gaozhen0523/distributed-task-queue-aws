@@ -100,8 +100,13 @@ class RedisQueue:
     # available_at = now + backoff_seconds
     # ----------------------------------------------------------------------
     def push_retry(self, task: dict[str, Any], delay_seconds: int) -> None:
-        payload = json.dumps(task)
         available_at = int(time.time()) + delay_seconds
+
+        # 复制一份，避免直接修改调用方传入的 dict
+        task_with_meta = dict(task)
+        task_with_meta["next_available_at"] = available_at
+
+        payload = json.dumps(task_with_meta)
         self.r.zadd(self.retry_key, {payload: available_at})
 
     def pop_due_retry(self) -> dict[str, Any] | None:

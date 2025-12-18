@@ -27,6 +27,26 @@ task_retry_total = Counter(
     registry=registry,
 )
 
+redis_connection_errors_total = Counter(
+    "redis_connection_errors_total",
+    "Total number of Redis connection "
+    " command errors observed by workers or scheduler",
+    registry=registry,
+)
+
+redis_abnormal_empty_total = Counter(
+    "redis_abnormal_empty_total",
+    "Total number of abnormal empty " "queue events (too many consecutive empty polls)",
+    registry=registry,
+)
+
+worker_forced_fail_total = Counter(
+    "worker_forced_fail_total",
+    "Total number of intentionally simulated "
+    "task failures (via FAIL_RATE or force_fail)",
+    registry=registry,
+)
+
 # ---------------------------------------------------------
 # Gauges
 # ---------------------------------------------------------
@@ -64,6 +84,14 @@ api_latency_seconds = Histogram(
     registry=registry,
 )
 
+retry_lag_seconds = Histogram(
+    "retry_lag_seconds",
+    "Lag between scheduled retry time and the "
+    "actual time the task is moved back to main queue",
+    buckets=[0.1, 0.5, 1, 2, 5, 10, 30],
+    registry=registry,
+)
+
 
 # ---------------------------------------------------------
 # Helper APIs
@@ -94,3 +122,19 @@ def observe_scheduler_latency(seconds: float):
 
 def observe_api_latency(seconds: float):
     api_latency_seconds.observe(seconds)
+
+
+def record_redis_error():
+    redis_connection_errors_total.inc()
+
+
+def record_abnormal_empty():
+    redis_abnormal_empty_total.inc()
+
+
+def record_forced_fail():
+    worker_forced_fail_total.inc()
+
+
+def observe_retry_lag(seconds: float):
+    retry_lag_seconds.observe(seconds)

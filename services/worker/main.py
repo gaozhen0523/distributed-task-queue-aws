@@ -4,11 +4,15 @@ import os
 import random
 import time
 
+import redis
 from dotenv import load_dotenv
 
 from libs.metrics.prom_metrics import (
     observe_task_latency,
+    record_abnormal_empty,
     record_fail,
+    record_forced_fail,
+    record_redis_error,
     record_retry,
 )
 from libs.queue.priority_queue import PriorityQueue
@@ -21,6 +25,16 @@ logging.basicConfig(
 
 load_dotenv(override=False)
 
+# ----------------------------------------------------------------------
+# 失败注入开关：使用环境变量控制模拟失败比例（0.0 ~ 1.0）
+# ----------------------------------------------------------------------
+try:
+    FAIL_RATE = float(os.getenv("FAIL_RATE", "0.2"))
+    if FAIL_RATE < 0.0 or FAIL_RATE > 1.0:
+        FAIL_RATE = 0.2
+except ValueError:
+    FAIL_RATE = 0.2
+
 
 # ----------------------------------------------------------------------
 # 模拟业务逻辑：80% 成功 / 20% 失败
@@ -28,9 +42,18 @@ load_dotenv(override=False)
 def execute_task(task: dict) -> bool:
     t = random.uniform(0.005, 0.02)  # 5ms ~ 20ms
     time.sleep(t)
+
+    # 显式强制失败（用于测试）
     if task["payload"].get("force_fail"):
+        record_forced_fail()
         return False
-    return random.random() >= 0.2
+
+    # 按 FAIL_RATE 注入随机失败
+    if random.random() < FAIL_RATE:
+        record_forced_fail()
+        return False
+
+    return True
 
 
 # ----------------------------------------------------------------------
@@ -116,13 +139,33 @@ def worker_loop():
     kind = os.getenv("QUEUE_KIND", "medium")
     # queue = RedisQueue()
     queue = PriorityQueue(kind=kind)
-    logger.info("Worker started. Waiting for tasks...")
+    logger.info(
+        "Worker started. Waiting for tasks... (kind=%s, FAIL_RATE=%.2f)",
+        kind,
+        FAIL_RATE,
+    )
+
+    empty_polls = 0  # 连续空轮询次数
 
     while True:
-        task = fetch_next_task(queue)
-        if not task:
+        try:
+            task = fetch_next_task(queue)
+        except redis.exceptions.RedisError as e:
+            logger.exception("[redis-error] Worker Redis operation failed: %s", e)
+            record_redis_error()
+            time.sleep(1.0)
             continue
 
+        if not task:
+            empty_polls += 1
+            if empty_polls >= 10:
+                logger.warning("[empty-queue] no task fetched for 10 consecutive polls")
+                record_abnormal_empty()
+                empty_polls = 0
+            continue
+
+        # 一旦有任务，重置空轮询计数
+        empty_polls = 0
         run_task(task, queue)
 
 

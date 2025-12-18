@@ -183,3 +183,14 @@ GET /autoscale/suggest
 * Multi-region failover
 
 ---
+
+## **7. Failure Plan**
+
+* Workers support controlled failure injection (`FAIL_RATE` or `force_fail`) to exercise retry, backoff, and DLQ behavior.
+* Redis connectivity issues are caught gracefully; workers degrade instead of crashing, and all errors are counted for alerting.
+* Consecutive empty queue polls trigger anomaly signals to detect silent Redis resets or key loss.
+* Retry tasks embed `next_available_at`, enabling the scheduler to measure retry lag and reveal backlog or Redis slowness.
+* These signals provide early detection of instability, support autoscaling decisions, and ensure predictable behavior under degraded conditions.
+
+---
+

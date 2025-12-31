@@ -8,7 +8,8 @@ High-concurrency distributed task queue system built from scratch, inspired by C
 - ☁️ **Cloud-ready**: Docker · AWS ECS Fargate · Terraform · CloudWatch Logs
 
 ---
-
+## Demo Video (Mandarin)
+https://youtu.be/g8pcxsr9Gjs
 ## 1. What this project does
 
 This repo implements a **simple but realistic** distributed task processing system:
